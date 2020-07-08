@@ -89,19 +89,18 @@ namespace App.Metrics.Reporting.ApplicationInsights
             {
                 foreach (var mt in TranslateContext(ctx, now))
                 {
-                    // Although the method comment suggest it is internal and should not be used,
-                    // the documentation here https://docs.microsoft.com/en-us/azure/azure-monitor/app/api-custom-events-metrics
-                    // suggest this is exactly the method you should use when metrics pre-aggregation is done by your code.
-                    client.Track(mt);
+                    client.TrackMetric(mt);
                     ++count;
                 }
             }
 
-            if (count > 0)
+            if (count <= 0)
             {
-                client.Flush();
-                Logger.Trace($"Flushed TelemetryClient; {count} records; elapsed: {sw.Elapsed}.");
+                return Task.FromResult(true);
             }
+
+            client.Flush();
+            Logger.Trace($"Flushed TelemetryClient; {count} records; elapsed: {sw.Elapsed}.");
 
             return Task.FromResult(true);
         }
@@ -170,7 +169,7 @@ namespace App.Metrics.Reporting.ApplicationInsights
             {
                 foreach (var item in source.Value.Items)
                 {
-                    mt = MetricFactory.CreateMetric(source, contextName, now, item.Item);
+                    mt = MetricFactory.CreateMetric(source, contextName, now);
                     item.ForwardTo(mt);
                     yield return mt;
                 }
@@ -193,7 +192,7 @@ namespace App.Metrics.Reporting.ApplicationInsights
 
             foreach (var item in source.Value.Items)
             {
-                mt = MetricFactory.CreateMetric(source, contextName, now, item.Item);
+                mt = MetricFactory.CreateMetric(source, contextName, now);
                 item.CopyTo(mt, unit);
                 yield return mt;
             }
@@ -207,13 +206,13 @@ namespace App.Metrics.Reporting.ApplicationInsights
             yield return mt;
 
             var unit = source.Value.Rate.RateUnit.ToShortString();
-            mt = MetricFactory.CreateMetric(source, contextName, now, "rate");
+            mt = MetricFactory.CreateMetric(source, contextName, now);
             source.Value.Rate.CopyTo(mt, unit);
             yield return mt;
 
             foreach (var item in source.Value.Rate.Items)
             {
-                mt = MetricFactory.CreateMetric(source, contextName, now, item.Item);
+                mt = MetricFactory.CreateMetric(source, contextName, now);
                 item.CopyTo(mt, unit);
                 yield return mt;
             }
